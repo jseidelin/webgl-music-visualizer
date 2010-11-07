@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>WebGL Music Visualizer</title>
+
+<link rel="stylesheet" href="css/reset.css">
+<link rel="stylesheet" href="css/styles.css">
+
+<script src="js/extern/jquery-1.4.2.min.js"></script>
+<script src="js/extern/jquery-ui-1.8.5.custom.min.js"></script>
+<script src="js/extern/jquery.mousewheel.js"></script>
+<script src="js/extern/sylvester.js"></script>
+<script src="js/vis.js"></script>
+<!--<script src="js/extern/soundmanager2.js"></script>-->
+<!--<script src="js/combined.js"></script>-->
+<script>
+
+var scripts = [
+	"js/gl.js",
+	"js/geometry.js",
+	"js/webgl-debug.js",
+	"js/data.music.js",
+	"js/data.textures.js",
+	"js/data.shaders.js",
+	"js/data.presets.js",
+	"js/audio.js",
+	"js/input.js",
+	"js/scene.js",
+
+	"js/ui.addobject.js",
+	"js/ui.audioplayer.js",
+	"js/ui.colorpicker.js",
+	"js/ui.editobject.js",
+	"js/ui.file.js",
+	"js/ui.scene.js",
+	"js/ui.sceneobjects.js",
+	"js/ui.settings.js",
+	"js/ui.main.js",
+	"js/init.js"
+
+];
+
+//scripts = ["js/combined.js"];
+var i = 0;
+function check() {
+	if (++i == scripts.length) {
+		vis.init();
+	}
+}
+
+scripts.forEach(function(src) {
+	vis.loadScript(src, check);
+});
+
+
+</script>
+
+</head>
+<body>
+
+<div>
+
+<div id="webgl-error">
+	You need a browser with WebGL support to use this application. <a href="http://get.webgl.org">Click here to get one</a>.
+</div>
+
+<div id="main">
+
+	<div id="left-column" class="column">
+		<div id="io-win" class="tool-window">
+			<h3>Preset</h3>
+			<div class="content">
+				<div class="button wide"><button name="settings">Settings</button></div>
+				<div class="button wide"><button name="load">Load preset</button></div>
+				<div class="button wide"><button name="reset">Reset</button></div>
+				<div class="button wide"><button name="save">Save preset</button></div>
+			</div>
+		</div>
+		<div id="objects-win" class="tool-window">
+			<h3>Objects</h3>
+			<div class="content">
+				<div name="scene-objects-ctr">
+					<ul name="scene-objects" class="selectable"></ul>
+				</div>
+				<div name="buttons">
+					<div class="button wide"><button name="edit">Edit</button></div>
+					<div class="button wide"><button name="delete">Delete</button></div>
+					<div class="button wide"><button name="add">Add</button></div>
+				</div>
+			</div>
+		</div>
+		<div id="music-win" class="tool-window">
+			<h3>Music</h3>
+			<div class="content">
+				<div name="buttons">
+					<div class="button"><button name="stop"></button></div>
+					<div class="button"><button name="play"></button></div>
+					<div class="button"><button name="pause"></button></div>
+				</div>
+				<div name="progress">
+					<div name="progress-bg"></div>
+				</div>
+				<ul name="tracks" class="selectable"></ul>
+			</div>
+		</div>
+	</div>
+
+	<div id="right-column" class="column">
+
+		<div id="scene" class="tool-window">
+			<h3>Scene</h3>
+			<div class="content">
+				<canvas id="screen" title="Double-click to toggle fullscreen"></canvas>
+			</div>
+		</div>
+	</div>
+
+</div>
+
+</div>
+
+<div id="overlay">
+
+	<div id="add-object-win" class="tool-window">
+		<h3>Add object to scene</h3>
+		<div class="content">
+			<ul name="object-icons">
+				<li name="sphere" title="Sphere">
+				<li name="cube" title="Cube">
+				<li name="plane" title="Plane">
+				<li name="cylinder" title="Cylinder">
+				<li name="torus" title="Torus">
+				<li name="particles" title="Particle System">
+				<li name="light" title="Light Source">
+			</ul>
+			<div name="buttons">
+				<div class="button wide"><button name="cancel">Cancel</button></div>
+			</div>
+		</div>
+	</div>
+
+	<div id="edit-object-win" class="tool-window">
+		<h3>Edit object</h3>
+		<div class="content">
+			<div class="edit-section">
+				<ul class="tabs" name="property-sections">
+					<li name="properties" data-types="all">
+						<h3>Properties</h3>
+						<div>
+							<fieldset>
+								<label for="object-properties-type">Type:</label><span class="output" id="object-properties-type"></span><br />
+								<label for="object-properties-name">Name:</label><input type="text" name="name" id="object-properties-name"/><br />
+								<label for="enabled">Enable object:</label><input type="checkbox" checked=true name="enabled"><br/>
+							</fieldset>
+						</div>
+					<li name="torus" data-types="torus"><h3>Torus properties</h3>
+						<div>
+							<label for="torus-radius">Radius:</label><input type="text" name="torus-radius" /><br />
+							<label for="torus-thickness">Thickness:</label><input type="text" name="torus-thickness" /><br />
+						</div>
+					<li name="cylinder" data-types="cylinder"><h3>Cylinder properties</h3>
+						<div>
+							<label for="cylinder-radius">Radius:</label><input type="text" name="cylinder-radius" /><br />
+							<label for="cylinder-height">Height:</label><input type="text" name="cylinder-height" /><br />
+						</div>
+					<li name="particle-props" data-types="particles"><h3>Particle properties</h3>
+						<div>
+							<fieldset>
+								<label for="particle-number">Particles:</label><input type="range" min="1" max="5000" value="1" name="particle-number" />
+									<span name="particle-number-output"></span><br />
+								<label for="particle-size">Particle Size:</label><input type="text" name="particle-size" class="modifier" /><br />
+								<label for="color-button">Particle color:</label><div name="color" class="color-button"></div><br/>
+								<label for="color-hue">- Hue:</label><input type="text" name="color-hue" class="modifier"><br />
+								<label for="color-saturation">- Saturation:</label><input type="text" name="color-saturation" class="modifier"><br />
+								<label for="color-lightness">- Lightness:</label><input type="text" name="color-lightness" class="modifier"><br />
+							</fieldset>
+						</div>
+					<li name="light" data-types="light"><h3>Light color</h3>
+						<div>
+							<fieldset>
+								<label for="color-button">Light color:</label><div name="color" class="color-button"></div><br/>
+								<label for="color-hue">- Hue:</label><input type="text" name="color-hue" class="modifier"><br />
+								<label for="color-saturation">- Saturation:</label><input type="text" name="color-saturation" class="modifier"><br />
+								<label for="color-lightness">- Lightness:</label><input type="text" name="color-lightness" class="modifier"><br />
+							</fieldset>
+						</div>
+					<li name="translation" data-types="all"><h3>Translate</h3>
+						<div>
+							<label for="translation-x">Translate X:</label><input type="text" name="translation-x" class="modifier" /><br />
+							<label for="translation-y">Translate Y:</label><input type="text" name="translation-y" class="modifier" /><br />
+							<label for="translation-z">Translate Z:</label><input type="text" name="translation-z" class="modifier" /><br />
+						</div>
+					<li name="rotation" data-types="sphere cube plane cylinder torus particles"><h3>Rotate</h3>
+						<div>
+							<label for="rotation-x">Rotation X-axis:</label><input type="text" name="rotation-x" class="modifier" /><br />
+							<label for="rotation-y">Rotation Y-axis:</label><input type="text" name="rotation-y" class="modifier" /><br />
+							<label for="rotation-z">Rotation Z-axis:</label><input type="text" name="rotation-z" class="modifier" /><br />
+						</div>
+					<li name="scaling" data-types="sphere cube plane cylinder torus"><h3>Scale</h3>
+						<div>
+							<label for="scaling-x">Scaling X:</label><input type="text" name="scaling-x" class="modifier" /><br />
+							<label for="scaling-y">Scaling Y:</label><input type="text" name="scaling-y" class="modifier" /><br />
+							<label for="scaling-z">Scaling Z:</label><input type="text" name="scaling-z" class="modifier" /><br />
+						</div>
+					<li name="surface" data-types="sphere cube plane cylinder torus"><h3>Color / lighting</h3>
+						<div>
+							<fieldset>
+								<label for="lighting">Use lighting:</label><input type="checkbox" checked=true name="lighting"><br/>
+								<span style="display:none;">
+								<label for="smooth">Smooth surface:</label><input type="checkbox" name="smooth"><br/>
+								</span>
+								<label for="specular">Specular highlights:</label><input type="checkbox" name="specular"><br/>
+								<label for="color-button">Surface color:</label><div name="color" class="color-button"></div><br/>
+								<label for="color-hue">- Hue:</label><input type="text" name="color-hue" class="modifier"><br />
+								<label for="color-saturation">- Saturation:</label><input type="text" name="color-saturation" class="modifier"><br />
+								<label for="color-lightness">- Lightness:</label><input type="text" name="color-lightness" class="modifier"><br />
+							</fieldset>
+						</div>
+					<li name="textures" data-types="sphere cube plane cylinder torus"><h3>Textures</h3>
+						<div>
+							<fieldset>
+								<label for="texture-repeat-x">Texture Repeat X:</label><input type="range" min="1" max="10" value="1" name="texture-repeat-x" />
+									<span name="texture-repeat-x-output"></span><br />
+								<label for="texture-repeat-y">Texture Repeat Y:</label><input type="range" min="1" max="10" value="1" name="texture-repeat-y" />
+									<span name="texture-repeat-y-output"></span><br />
+								<div name="texture-list"></div>
+								<input type="hidden" name="texture" value="">
+							</fieldset>
+						</div>
+					<li name="glow" data-types="sphere cube plane cylinder torus particles"><h3>Glow</h3>
+						<div>
+							<fieldset>
+								<label for="glow">Enable glow:</label><input type="checkbox" checked=true name="glow"><br/>
+								<label for="glow-strength">Glow strength:</label><input type="text" name="glow-strength" class="modifier" /><br />
+							</fieldset>
+						</div>
+					<li name="variables" data-types="sphere cube plane cylinder torus particles"><h3>Per-frame variables</h3>
+						<div>
+							<fieldset>
+								<label for="variable-A">A:</label><input type="text" name="variable-A" class="modifier" /><br />
+								<label for="variable-B">B:</label><input type="text" name="variable-B" class="modifier" /><br />
+								<label for="variable-C">C:</label><input type="text" name="variable-C" class="modifier" /><br />
+								<label for="variable-D">D:</label><input type="text" name="variable-D" class="modifier" /><br />
+								<label for="variable-E">E:</label><input type="text" name="variable-E" class="modifier" /><br />
+								<label for="variable-F">F:</label><input type="text" name="variable-F" class="modifier" /><br />
+								<label for="variable-G">G:</label><input type="text" name="variable-G" class="modifier" /><br />
+								<label for="variable-H">H:</label><input type="text" name="variable-H" class="modifier" /><br />
+							</fieldset>
+						</div>
+					<li name="help" data-types="all"><h3>Help</h3>
+						<div>
+							<p>The objects in the scene can be modified and animated using the properties
+							in the sections above. Click the section headers to show the different
+							property groups.</p>
+							<p>All text fields with blue background take numeric
+							values either as constant values or as <em>expressions</em> that evaluate to a number.
+							The expressions have a number of functions and variables available that can
+							be used to create interesting results.</p>
+							<p>The available functions include standard  math functions such as <code>sin()</code>, <code>cos()</code>,
+							<code>abs()</code>, etc. In addition to these functions you can use various music related
+							values to make the objects animate according to the music. These values are
+							updated each frame and include: <code>bass</code>, <code>mid</code>, <code>treb</code> (values from 0 to ~2 indicating
+							the current level in the low, middle and high end of the spectrum), <code>beat</code>
+							(either 0 or 1, used for beat detection), and <code>time</code> (the number of seconds elapsed
+							since the rendering started). Finally, the (unmodified) coordinates of the current point is available through
+							the variables <code>x</code>, <code>y</code> and <code>z</code></p>
+							<p>Example 1: Setting the y-axis translation to "beat * 2" will make the object jump up 2 "world units"
+							when there's a beat in the music.</p>
+							<p>Example 2: Setting the y-axis rotation to "sin(time) * 3.14159 * x" will make the object continously
+							rotate back and forth around the y-axis, with points further out on the x-axis rotating more.</p>
+							<p>
+							The full list of math functions available is: sqrt, pow, exp, sin, cos, tan, atan, asin, acos,
+							min, max, abs, log, floor, ceil, mod, sign.
+							</p>
+						</div>
+				</ul>
+			</div>
+			<div name="buttons">
+				<div class="button wide"><button name="ok">OK</button></div>
+				<div class="button wide"><button name="cancel">Cancel</button></div>
+				<div class="button wide"><button name="apply">Apply</button></div>
+			</div>
+		</div>
+	</div>
+
+	<div id="color-picker-win" class="tool-window">
+		<h3>Select color</h3>
+		<div class="content">
+			<div name="color-picker">
+				<canvas name="field"></canvas>
+				<canvas name="hue">
+			</div>
+			<div class="note">Note: Picking a color will clear the HSL fields.</div>
+			<div name="buttons">
+				<div class="button wide"><button name="cancel">Cancel</button></div>
+			</div>
+		</div>
+	</div>
+
+	<div id="save-win" class="tool-window">
+		<h3>Save to JSON</h3>
+		<div class="content">
+			<textarea name="data"></textarea>
+			<div name="buttons">
+				<div class="button wide"><button name="close">Close</button></div>
+			</div>
+		</div>
+	</div>
+
+	<div id="load-win" class="tool-window">
+		<h3>Example presets</h3>
+		<div class="content">
+			<ul name="examples"></ul>
+			<div name="buttons">
+				<div class="button wide"><button name="load-json">Load JSON</button></div>
+				<div class="button wide"><button name="cancel">Cancel</button></div>
+			</div>
+		</div>
+	</div>
+
+	<div id="load-json-win" class="tool-window">
+		<h3>Load JSON data</h3>
+		<div class="content">
+			<textarea name="data" spellcheck="false">Paste preset JSON data here...</textarea>
+			<div name="buttons">
+				<div class="button wide"><button name="load">Load data</button></div>
+				<div class="button wide"><button name="cancel">Cancel</button></div>
+			</div>
+		</div>
+	</div>
+
+	<div id="preset-settings-win" class="tool-window">
+		<h3>Preset settings</h3>
+		<div class="content">
+			<div name="settings">
+				<fieldset>
+					<label>Background color:</label><div name="color" class="color-button"></div><br/>
+					<label>- Hue:</label><input type="text" name="color-hue" class="modifier"><br />
+					<label>- Saturation:</label><input type="text" name="color-saturation" class="modifier"><br />
+					<label>- Lightness:</label><input type="text" name="color-lightness" class="modifier"><br />
+				</fieldset>
+			</div>
+			<div name="buttons">
+				<div class="button wide"><button name="ok">OK</button></div>
+				<div class="button wide"><button name="cancel">Cancel</button></div>
+				<div class="button wide"><button name="apply">Apply</button></div>
+			</div>
+		</div>
+	</div>
+
+</div>
+
+
+<!-- <div style='position:absolute;bottom:25px;left:5px;'>
+	<div style='display:inline-block;position:relative;left:12px;top:12px;'>
+		<g:plusone size='medium'></g:plusone>
+	</div>
+	<div style='display:inline-block;position:relative;left:12px;top:12px;'>
+		<a class='twitter-share-button' data-count='horizontal' data-via='jseidelin' href='http://twitter.com/share'>Tweet</a>
+	</div>
+	<div style='display:inline-block;position:relative;left:12px;top:7px;'>
+		A Chrome WebGL Experiment by <a href="http://blog.nihilogic.dk/" style="color:inherit;">Jacob Seidelin</a>
+	</div>
+</div>
+
+<script src='https://apis.google.com/js/plusone.js' type='text/javascript'></script>
+<script src='http://platform.twitter.com/widgets.js' type='text/javascript'></script>
+
+ -->
+</body>
+</html>
